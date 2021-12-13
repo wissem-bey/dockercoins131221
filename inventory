@@ -1,0 +1,4 @@
+master	ansible_host=localhost  ansible_connection=local
+[workers]
+worker1 ansible_host=192.168.205.11
+worker2 ansible_host=192.168.205.12  ansible_ssh_pass=vagrant

@@ -1,0 +1,184 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels:
+    app: dockercoins
+    tier: worker
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      tier: worker
+  template:
+    metadata:
+      name: worker-pod
+      labels:
+        tier: worker
+    spec:
+      containers:
+        - name: worker
+          image: brahimhamdi/worker:2.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rng
+  labels:
+    app: dockercoins
+    tier: rng
+spec:
+  selector:
+    matchLabels:
+      tier: rng
+  template:
+    metadata:
+      name: rng-pod
+      labels:
+        tier: rng
+    spec:
+      containers:
+        - name: rng
+          image: brahimhamdi/rng:2.0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rng
+spec:
+  selector:
+    tier: rng
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hasher
+  labels:
+    app: dockercoins
+    tier: hasher
+spec:
+  selector:
+    matchLabels:
+      tier: hasher
+  template:
+    metadata:
+      name: hasher-pod
+      labels:
+        tier: hasher
+    spec:
+      containers:
+        - name: hasher
+          image: brahimhamdi/hasher:2.0
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "75m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hasher
+spec:
+  selector:
+    tier: hasher
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: dockercoins
+    tier: redis
+spec:
+  selector:
+    matchLabels:
+      tier: redis
+  template:
+    metadata:
+      name: redis-pod
+      labels:
+        tier: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  selector:
+    tier: redis
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: front
+  labels:
+    app: dockercoins
+    tier: front
+spec:
+  selector:
+    matchLabels:
+      tier: front
+  template:
+    metadata:
+      name: front-pod
+      labels:
+        tier: front
+    spec:
+      containers:
+        - name: webui
+          image: brahimhamdi/webui:2.0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webui
+spec:
+  selector:
+    tier: front
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 32000
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hasher-autoscale
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hasher
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50  

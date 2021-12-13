@@ -1,0 +1,44 @@
+- name: deploy on k8s
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: disable swap
+      command: swapoff -a
+      become: yes
+
+- name: play master
+  hosts: master  
+  tasks:
+    - name: k8s cluster status
+      command: kubectl cluster-info
+      register: k8s_status
+    - name: print k8s cluster status
+      debug:
+        msg: "{{ k8s_status.stdout_lines }}"
+    - name: k8s cluster nodes status
+      command: kubectl get node -o wide
+      register: k8s_nodes
+    - name: print k8s nodes status
+      debug:
+        msg: "{{ k8s_nodes.stdout_lines }}"
+    - name: remove dockercoins
+      command: kubectl delete -f dockercoins.yml
+      register: deploy_result
+      tags:
+        - remove
+    - name: deploy dockercoins
+      command: kubectl apply -f dockercoins.yml
+      register: deploy_result
+      tags:
+        - deploy
+      notify: get all resources
+    - name: deploy result
+      debug:
+        msg: "{{ deploy_result.stdout_lines }}"
+      tags:
+        - deploy
+  handlers:
+    - name: get all resources
+      command: kubectl get all -o wide
+      register: all_res
+
